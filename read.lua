@@ -15,7 +15,7 @@
 --------------------------------------------------------------------------------
 --
 
-require "parse"
+local parse=require "parse"
 
 len = io.read(1)
 data = io.read(string.byte(len))
