@@ -54,7 +54,7 @@ repeat
 			print(s,c)
 		end
 	else
-		print("Unknown 0x"..string.format("%x",string.byte(data:sub(1,1))))
+		print("Unimplemented 0x"..string.format("%x",string.byte(data:sub(1,1))))
 	end
 
 until false
