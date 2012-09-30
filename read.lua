@@ -33,6 +33,9 @@ end
 
 tty:write(encode.get_status())
 
+tty:write(encode.enable_all())
+tty:write(encode.enable_undecoded())
+
 local ttypoll = {
 	{ fd=tty, events=nixio.poll_flags("in") }
 }
