@@ -60,6 +60,8 @@ function rfxcallback ( fd )
   end  ----------  end of function rfxcallback  ----------
 end
 
+table.insert(poll, { fd=tty, events=nixio.poll_flags("in"), callback=rfxcallback })
+
 function parsedata ( data  )
     realdata=parse.parse(data)
     if realdata then
@@ -69,11 +71,7 @@ function parsedata ( data  )
     else
       print("Unimplemented 0x"..string.format("%x",string.byte(data:sub(1,1))))
     end
---  end
 end  ----------  end of function parsedata  ----------
 
-table.insert(poll, { fd=tty, events=nixio.poll_flags("in"), callback=rfxcallback })
-print(type(parsedata))
 pubsub:subscribe("SENSOR", parsedata)
---pubsub:subscribe("SENSOR", function() print("hej") end)
 
