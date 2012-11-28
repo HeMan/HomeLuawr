@@ -17,13 +17,20 @@
 
 Pubsub = {}
 
+--- @class Pubsub
+-- A simple pubsub engine
+-- It uses four types of signals (SENSOR, WEB, TIME and SIGNAL)
+-- SENSOR is for sensor data like thermometers
+-- WEB is signal from web cgi socket
+-- TIME is for all types of time messages like day/night or daytime clock
+-- SIGNAL is the opposit of SENSOR, information to send out
+
 function Pubsub:new(o)
---  print("new")
   self.signals = { 'SENSOR', 'WEB', 'TIME', 'SIGNAL' }
   self.message = {}
-  self.message[self.signals[1]] = {}
-  self.message[self.signals[2]] = {}
-  self.message[self.signals[3]] = {}
+  for k,v in ipairs(self.signals) do
+    self.message[v] = {}
+  end
 
   o = o or {}   -- create object if user does not provide one
   setmetatable(o, self)
@@ -32,17 +39,13 @@ function Pubsub:new(o)
 end  ----------  end of function Pubsub:new  ----------
 
 function Pubsub:publish(signal, ...)
---  print("publish "..signal)
   for k, v in ipairs(self.message[signal]) do
---    print(signal, type(v))
     v(...)
   end
 	return self
 end  ----------  end of function Pubsub:publish  ----------
 
 function Pubsub:subscribe (signal, event)
---  print("subscribe "..signal)
---  print(type(event))
   table.insert(self.message[signal], event)
 	return true
 end  ----------  end of function Pubsub:subscribe----------
