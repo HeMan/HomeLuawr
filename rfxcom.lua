@@ -44,7 +44,7 @@ tty:write(encode.get_status())
 
 -- enable all senders
 tty:write(encode.enable_all())
-tty:write(encode.enable_undecoded())
+--tty:write(encode.enable_undecoded())
 
 function rfxcallback ( fd )
   len = string.byte(fd:read(1))
@@ -73,5 +73,27 @@ function parsedata ( data  )
     end
 end  ----------  end of function parsedata  ----------
 
+function turnonoff (signal)
+  if type(signal)=="table" then
+    local sendcode = ""
+    local onoff = 0
+    local id = signal.id
+
+    if signal.command=="on" then
+      onoff = 1
+    end
+
+    if (type(id) == "table") then
+      if (id.type == LIGHTNING1) then
+        sendcode = encode.encode[id.type](id.subtype,id.housecode,id.unitcode,onoff)
+      elseif (id.type == LIGHTNING2) then
+        sendcode = encode.encode[id.type](id.subtype,id.id,id.unitcode,onoff,0)
+      end
+      return tty:write(sendcode)
+    end
+  end
+end  ----------  end of function turnonoff  ----------
+
+pubsub:subscribe("SIGNAL", turnonoff)
 pubsub:subscribe("SENSOR", parsedata)
 
