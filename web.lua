@@ -21,8 +21,8 @@ function webcallback ( fd )
   command=fd:read("*line")
   print(command)
   local env = { 
-                on  = function(id) pubsub:publish("SIGNAL",{ "on", id}) end,
-                off = function(id) pubsub:publish("SIGNAL",{ "off", id}) end,
+                on  = function(id) pubsub:publish("SIGNAL",{ command="on", id=id}) end,
+                off = function(id) pubsub:publish("SIGNAL",{ command="off", id=id}) end,
               }
   if command:byte(1) == 27 then return nil, "binary bytecode prohibited" end
   local untrusted_function, message = loadstring(command)
