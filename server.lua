@@ -28,8 +28,7 @@ function addpoller ( fd, events, callback )
 	return table.insert(poll, {fd=fd, events=events, callback=callback})
 end  ----------  end of function addpoller  ----------
 
-local modules = { "web", "rfxcom" }
---local modules = { "web" }
+local modules = { "web", "rfxcom", "callbacks" }
 
 pubsub = Pubsub:new()
 
@@ -37,10 +36,8 @@ for _, v in ipairs(modules) do
   dofile(v..".lua")
 end
 
-pubsub:subscribe("TIME", function(data) if (data.sec==0) then print(os.date("%c",os.time(data))) end end)
 repeat
   repeat
---    print("polling")
     stat, code = nixio.poll(poll, 1000)
     pubsub:publish("TIME", os.date("*t"))
   until stat and stat > 0
