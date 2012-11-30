@@ -30,11 +30,11 @@ end  ----------  end of function flush  ----------
 
 tty = assert(nixio.open("/dev/ttyUSB0","r+"))
 
-nixio.nanosleep(5,0)
+--nixio.nanosleep(5,0)
 print("reseting")
 -- reset the rfxcom
 tty:write(encode.reset())
-nixio.nanosleep(0,500000000)
+nixio.nanosleep(1,500000000)
 
 -- flush inputs
 flush(tty)
@@ -44,7 +44,6 @@ tty:write(encode.get_status())
 
 -- enable all senders
 tty:write(encode.enable_all())
---tty:write(encode.enable_undecoded())
 
 function rfxcallback ( fd )
   len = string.byte(fd:read(1))
@@ -56,44 +55,29 @@ function rfxcallback ( fd )
     while (string.len(data) < len) do
       data = data..fd:read(len - string.len(data))
     end
-    pubsub:publish("SENSOR", data)
+    realdata = parse.parse(data)
+    if realdata then
+      pubsub:publish("SENSOR", realdata)
+    end
   end  ----------  end of function rfxcallback  ----------
 end
 
-table.insert(poll, { fd=tty, events=nixio.poll_flags("in"), callback=rfxcallback })
+addpoller(tty, nixio.poll_flags("in"), rfxcallback)
 
-function parsedata ( data  )
-    realdata=parse.parse(data)
-    if realdata then
-      for s,c in pairs(realdata) do
-        print(s,c)
-      end
-    else
-      print("Unimplemented 0x"..string.format("%x",string.byte(data:sub(1,1))))
-    end
-end  ----------  end of function parsedata  ----------
-
-function turnonoff (signal)
+function command ( signal )
   if type(signal)=="table" then
-    local sendcode = ""
-    local onoff = 0
-    local id = signal.id
-
-    if signal.command=="on" then
-      onoff = 1
-    end
-
-    if (type(id) == "table") then
-      if (id.type == LIGHTNING1) then
-        sendcode = encode.encode[id.type](id.subtype,id.housecode,id.unitcode,onoff)
-      elseif (id.type == LIGHTNING2) then
-        sendcode = encode.encode[id.type](id.subtype,id.id,id.unitcode,onoff,0)
-      end
-      return tty:write(sendcode)
+    if signal.subsystem=="rfxcom" then
+      local env = encode
+      env.tty = tty
+      env.print = print
+      if signal.command:byte(1) == 27 then return nil, "binary bytecode prohibited" end
+      local untrusted_function, message = loadstring(signal.command)
+      if not untrusted_function then return nil, message end
+      setfenv(untrusted_function, env)
+      print( pcall(untrusted_function))
     end
   end
-end  ----------  end of function turnonoff  ----------
+end  ----------  end of function command  ----------
 
-pubsub:subscribe("SIGNAL", turnonoff)
-pubsub:subscribe("SENSOR", parsedata)
+pubsub:subscribe("SIGNAL", command)
 

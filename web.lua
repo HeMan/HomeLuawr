@@ -19,16 +19,10 @@
 
 function webcallback ( fd )
   command=fd:read("*line")
-  print(command)
-  local env = { 
-                on  = function(id) pubsub:publish("SIGNAL",{ command="on", id=id}) end,
-                off = function(id) pubsub:publish("SIGNAL",{ command="off", id=id}) end,
-              }
-  if command:byte(1) == 27 then return nil, "binary bytecode prohibited" end
-  local untrusted_function, message = loadstring(command)
-  if not untrusted_function then return nil, message end
-  setfenv(untrusted_function, env)
-  return pcall(untrusted_function)
+  first, _ = command:find(" ")
+  subsystem = command:sub(1, first-1)
+  sendcommand = command:sub(first+1, -1)
+  pubsub:publish("SIGNAL", {subsystem=subsystem, command=sendcommand})
 end  ----------  end of function webcallback  ----------
 
 nixio.fs.mkfifo("/tmp/myfifo","700")
@@ -36,6 +30,3 @@ nixio.fs.mkfifo("/tmp/myfifo","700")
 fifo = assert(io.open("/tmp/myfifo","r+"))
 
 addpoller(fifo, nixio.poll_flags("in"), webcallback)
-
---pubsub:subscribe("WEB", )
-
