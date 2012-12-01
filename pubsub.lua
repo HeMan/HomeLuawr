@@ -15,15 +15,17 @@
 --------------------------------------------------------------------------------
 --
 
-Pubsub = {}
-
---- @class Pubsub
+-----------------------------------
 -- A simple pubsub engine
 -- It uses four types of signals (SENSOR, WEB, TIME and SIGNAL)
 -- SENSOR is for sensor data like thermometers
 -- WEB is signal from web cgi socket
 -- TIME is for all types of time messages like day/night or daytime clock
 -- SIGNAL is the opposit of SENSOR, information to send out
+-- @class table
+-- @name Pubsub
+
+Pubsub = {}
 
 function Pubsub:new(o)
   self.signals = { 'SENSOR', 'WEB', 'TIME', 'SIGNAL' }
