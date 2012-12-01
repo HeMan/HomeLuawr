@@ -33,17 +33,17 @@ tty = assert(nixio.open("/dev/ttyUSB0","r+"))
 --nixio.nanosleep(5,0)
 print("reseting")
 -- reset the rfxcom
-tty:write(encode.reset())
+encode.Protocol:reset()
 nixio.nanosleep(1,500000000)
 
 -- flush inputs
 flush(tty)
 
 -- get info on status
-tty:write(encode.get_status())
+encode.Protocol:get_status()
 
 -- enable all senders
-tty:write(encode.enable_all())
+encode.Protocol:enable_all()
 
 function rfxcallback ( fd )
   len = string.byte(fd:read(1))
