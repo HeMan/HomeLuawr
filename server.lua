@@ -15,12 +15,9 @@
 --------------------------------------------------------------------------------
 --
 
-local parse = require "parse"
-local encode = require "encode"
 local nixio = require "nixio"
 local os = require "os"
 require "pubsub"
-require "common"
 
 poll = { }
 
