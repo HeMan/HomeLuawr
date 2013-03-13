@@ -15,11 +15,11 @@
 --------------------------------------------------------------------------------
 --
 
-local parse = require "parse"
-local encode = require "encode"
+local parse = require "rfxcom.parse"
+local encode = require "rfxcom.encode"
 local nixio = require "nixio"
 local os = require "os"
-require "common"
+require "rfxcom.common"
 
 local function flush (ttyn)
   while not ttyn:read(0) do
