@@ -15,49 +15,41 @@
 --------------------------------------------------------------------------------
 --
 
-function parsedata ( data  )
-    for s,c in pairs(data) do
-      if type(s) == "string" then
-        print(s,c)
-      end
-    end
-end  ----------  end of function parsedata  ----------
+local MQTT_SERVER = "localhost"
+local MQTT_PORT = 1883
 
-function tempwrite ( data )
-  if data.id == 40192 then
-    local fil = io.open("/www/rfxcom/ut.html","w")
-    fil:write(data.temp)
+local mqtt = require "mqtt_library"
+local nixio = require "nixio"
+local rrd = require "rrd"
+
+function outsidetemp(topic, payload)
+    print("outsidetemp " .. topic .. ": " .. payload)
+    -- data for the web
+    local fil = io.open("/proj/data/ut.html","w")
+    fil:write(payload)
     fil:close()
-  end
-	return true
-end  ----------  end of function tempwrite  ----------
+    -- rrd graph
+    rrd.update("/proj/data/temperature.rrd", "N:"..payload)
+    -- post data to cosm
+    io.popen("curl --silent --request PUT --data-binary '{ \"version\":\"1.0.0\", \"datastreams\":[{\"id\":\"Utetemp\", \"current_value\":\""..payload.."\"}]}' --header \"X-ApiKey: 9422WoQJ_ntMtDznZ0aVyi-KA0mSAKxOZlV6QUxIUHYyUT0g\" -o /dev/null http://api.cosm.com/v2/feeds/91433")
+    -- post data to sen.se
+    io.popen("curl --silent --request POST -H \"sense_key: 2oGGutVpxpSQMEEl-jILOg\" -H \"Content-Type: application/json\" --data-binary '{\"feed_id\": 22946, \"value\": \""..payload.."\"}' http://api.sen.se/events/")
+end 
 
-function temprrd ( data )
-  if data.id == 40192 then
-    io.popen("/usb/usr/bin/rrdupdate /usb/proj/data/temperature.rrd N:"..data.temp)
-  end
-	return true
-end  ----------  end of function temprrd  ----------
+local listners = {
+    ['outsidetemp'] = {{"home/sensors/33280/temp"}, outsidetemp},
+    ['any'] = {{"home/#"}, function(topic, payload) print("any "..topic..": "..payload) end, server="localhost", port="1883",}
+}
 
+for k,v in pairs(listners) do
+    v.MQTT = mqtt.client.create(v.server or MQTT_SERVER, v.port or MQTT_PORT, v[2])
+    v.MQTT:connect(k)
+    v.MQTT:subscribe(v[1])
+end
 
-function tempcosm ( data )
-  if data.id == 40192 then
-    io.popen("curl --silent --request PUT --data-binary '{ \"version\":\"1.0.0\", \"datastreams\":[{\"id\":\"Utetemp\", \"current_value\":\""..data.temp.."\"}]}' --header \"X-ApiKey: 9422WoQJ_ntMtDznZ0aVyi-KA0mSAKxOZlV6QUxIUHYyUT0g\" -o /dev/null http://api.cosm.com/v2/feeds/91433")
-  end
-	return true
-end  ----------  end of function tempcosm  ----------
-
-function tempsense ( data )
-  if data.id == 40192 then
-    io.popen("curl --silent --request POST -H \"sense_key: 2oGGutVpxpSQMEEl-jILOg\" -H \"Content-Type: application/json\" --data-binary '{\"feed_id\": 22946, \"value\": \""..data.temp.."\"}' http://api.sen.se/events/")
-  end
-	return true
-end  ----------  end of function tempsense  ----------
-pubsub:subscribe("SENSOR", parsedata)
-pubsub:subscribe("SENSOR", tempwrite)
-pubsub:subscribe("SENSOR", temprrd)
-pubsub:subscribe("SENSOR", tempcosm)
-pubsub:subscribe("SENSOR", tempsense)
-
-pubsub:subscribe("TIME", function(data) if (data.sec==0) then print(os.date("%c",os.time(data))) end end)
-
+while true do
+    for k,v in pairs(listners) do 
+        v.MQTT:handler()
+    end
+    nixio.nanosleep(0,500000000)
+end
