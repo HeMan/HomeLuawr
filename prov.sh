@@ -29,4 +29,4 @@ fi
 #exec < $RFXCOMTTY
 stty raw $BAUD < $RFXCOMTTY
 stty -a < $RFXCOMTTY
-lua ./server.lua 
+lua ./rfxserv.lua 
