@@ -15,11 +15,16 @@
 --------------------------------------------------------------------------------
 --
 
+local nixio = require "nixio"
+local mqtt = require "mqtt_library"
+
 local parse = require "rfxcom.parse"
 local encode = require "rfxcom.encode"
-local nixio = require "nixio"
-local os = require "os"
 require "rfxcom.common"
+
+function mqcallback(topic, payload)
+    print("mqtt callback " .. topic .. ": " .. payload)
+end
 
 local function flush (ttyn)
   while not ttyn:read(0) do
@@ -28,22 +33,6 @@ local function flush (ttyn)
   return 0
 end  ----------  end of function flush  ----------
 
-tty = assert(nixio.open("/dev/ttyUSB0","r+"))
-
---nixio.nanosleep(5,0)
-print("reseting")
--- reset the rfxcom
-encode.Protocol:reset()
-nixio.nanosleep(1,500000000)
-
--- flush inputs
-flush(tty)
-
--- get info on status
-encode.Protocol:get_status()
-
--- enable all senders
-encode.Protocol:enable_all()
 
 function rfxcallback ( fd )
   len = string.byte(fd:read(1))
@@ -57,27 +46,57 @@ function rfxcallback ( fd )
     end
     realdata = parse.parse(data)
     if realdata then
-      pubsub:publish("SENSOR", realdata)
-    end
-  end  ----------  end of function rfxcallback  ----------
-end
+      if (realdata.id) then
+        for s,c in pairs(realdata) do
+          if (type(s) == "string") and not (s == "id") then
+              mqtt_client:publish("home/sensors/"..realdata.id.."/"..s,c)
+          end -- if (type)
+        end -- for s,c
+      else -- if (realdata.id)
+        for k,v in pairs(realdata) do
+          if not (type(k) == "number") then print(k, v) end
+        end -- for k,v
+      end -- if(realdata.id)
+    end -- if (realdata)
+  end -- if (len)
+end  ----------  end of function rfxcallback  ----------
 
-addpoller(tty, nixio.poll_flags("in"), rfxcallback)
-
-function command ( signal )
-  if type(signal)=="table" then
-    if signal.subsystem=="rfxcom" then
-      local env = encode
-      env.tty = tty
-      env.print = print
-      if signal.command:byte(1) == 27 then return nil, "binary bytecode prohibited" end
-      local untrusted_function, message = loadstring(signal.command)
-      if not untrusted_function then return nil, message end
-      setfenv(untrusted_function, env)
-      print( pcall(untrusted_function))
-    end
+local function flush (ttyn)
+  while not ttyn:read(0) do
+    ttyn:read(1)
   end
-end  ----------  end of function command  ----------
+  return 0
+end  ----------  end of function flush  ----------
 
-pubsub:subscribe("SIGNAL", command)
+mqtt_client = mqtt.client.create("localhost","1883", mqcallback)
+mqtt_client:connect("rfxserv")
 
+mqtt_client:subscribe({"home/#"})
+
+tty = assert(nixio.open("/dev/ttyUSB0","r+"))
+
+local poll = { { fd=tty, events=nixio.poll_flags("in") } }
+
+print("reseting")
+-- reset the rfxcom
+encode.Protocol:reset()
+nixio.nanosleep(1,500000000)
+
+-- flush inputs
+flush(tty)
+
+-- get info on status
+encode.Protocol:get_status()
+
+-- enable all senders
+encode.Protocol:enable_some(msg3.Viking, 0, msg5.OregonScientific + msg5.AC + msg5.ARC )
+
+--addpoller(tty, nixio.poll_flags("in"), rfxcallback)
+
+repeat
+  repeat
+    stat, code = nixio.poll(poll, 1000)
+    mqtt_client:handler()
+  until stat and stat > 0
+  rfxcallback(tty)
+until false
